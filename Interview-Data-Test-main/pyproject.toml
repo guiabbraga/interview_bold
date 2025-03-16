@@ -1,0 +1,15 @@
+[project]
+name = "data-engineering"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "black>=25.1.0",
+    "faker>=37.0.0",
+    "pandas>=2.2.3",
+    "pylint>=3.3.5",
+    "pyodbc>=5.2.0",
+    "python-dotenv>=1.0.1",
+    "sqlalchemy>=2.0.38",
+]
