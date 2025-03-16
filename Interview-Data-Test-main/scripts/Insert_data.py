@@ -25,7 +25,7 @@ password = os.getenv('DB_PASSWORD', 'YourStrongPassword123!')
 
 # Function to create database connection
 def create_connection():
-    conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password};TrustServerCertificate=yes;'
+    conn_str = f'DRIVER={{ODBC Driver 18 for SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password};TrustServerCertificate=yes;'
     try:
         conn = pyodbc.connect(conn_str)
         return conn

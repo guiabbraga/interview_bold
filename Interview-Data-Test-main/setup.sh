@@ -189,6 +189,8 @@ if [ "$RETURNS" -ne 100 ]; then
   PYTHON_ARGS="$PYTHON_ARGS --returns $RETURNS"
 fi
 
+print_message "yellow"  $PYTHON_ARGS
+
 # Run the Python script with the arguments
 python3 scripts/Insert_data.py $PYTHON_ARGS
 

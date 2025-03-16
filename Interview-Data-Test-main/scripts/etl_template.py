@@ -217,7 +217,7 @@ class ETLPipeline:
             username = self.config.get('source_username', os.getenv('DB_USER', 'sa'))
             password = self.config.get('source_password', os.getenv('DB_PASSWORD', 'YourStrongPassword123!'))
             
-            connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+            connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
             self.source_conn = sqlalchemy.create_engine(connection_string)
             logger.info("Connected to source database")
         except Exception as e:
@@ -267,6 +267,8 @@ class ETLPipeline:
                 'purchases': self.extract_data('purchases'),
                 'returns': self.extract_data('returns')
             }
+
+            print(extracted_data)
             
             # Transform
             logger.info("Transforming data")
