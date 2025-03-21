@@ -1,6 +1,3 @@
--- SQL Server database setup script with intentional data quality issues
-
--- Create database if it doesn't exist
 IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'interview_dw')
 BEGIN
     CREATE DATABASE interview_dw;
