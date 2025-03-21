@@ -136,6 +136,12 @@ else
   print_message "green" "Database and tables created successfully!"
 fi
 
+if ! docker exec interview-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrongPassword123!" -C -i /scripts/dw_sql_server_setup.sql -v drop_tables=$DROP_TABLES; then
+  print_message "red" "Error configuring the Data Warehouse"
+  print_message "yellow" "Please check the script or run the following command manually:"
+  print_message "cyan" "docker exec interview-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrongPassword123!' -C -i /scripts/dw_sql_server_setup.sql -v drop_tables=$DROP_TABLES"
+fi
+
 # Configure Python environment
 print_message "yellow" "Configuring Python environment..."
 
@@ -188,8 +194,6 @@ fi
 if [ "$RETURNS" -ne 100 ]; then
   PYTHON_ARGS="$PYTHON_ARGS --returns $RETURNS"
 fi
-
-print_message "yellow"  $PYTHON_ARGS
 
 # Run the Python script with the arguments
 python3 scripts/Insert_data.py $PYTHON_ARGS

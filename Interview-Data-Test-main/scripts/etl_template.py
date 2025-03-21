@@ -39,12 +39,49 @@ class ETLPipeline:
             pd.DataFrame: DataFrame containing extracted data
         """
         try:
-            query = f"SELECT * FROM {table_name}"
+            query = f"SELECT * FROM {table_name} WHERE last_update > (SELECT MAX(last_update) FROM {table_name})"
+            if pd.read_sql(query, self.source_conn).empty:
+                query = f"SELECT * FROM {table_name}"
+
             return pd.read_sql(query, self.source_conn)
         except Exception as e:
             logger.error(f"Error extracting data from {table_name}: {str(e)}")
             raise
-    
+
+    def get_product_mapping(self):
+        """Fetch product_id mappings from the products table."""
+        
+        query = "SELECT product_name, product_id FROM products"
+        df_products = pd.read_sql(query, self.source_conn)
+        
+        return dict(zip(df_products['product_name'].str.lower().str.strip(), df_products['product_id']))
+
+    def clean_dataframe(self, df):
+        # Load product mapping dynamically
+        for column in df.columns:
+
+            if df[column].dtype in ['float64', 'int64']:
+                df.loc[:, column] = df[column].fillna(0)
+
+            if column in ['registration_date', 'birth_date', 'purchase_date', 'shipping_date', 'delivery_date', 'return_date', 'last_login', 'last_update']:
+                df.loc[:, column] = pd.to_datetime(df[column], errors='coerce')
+
+            if column in ['quantity', 'unit_price', 'refund_amount']:
+                df.loc[:, column] = pd.to_numeric(df[column], errors='coerce')
+                df.loc[:, column] = df[column].abs()
+
+            if column == 'phone':
+                df.loc[:, column] = df[column].str.replace(r'\D', '', regex=True) 
+
+            if column == 'product_id':
+                df.loc[:, 'product_id'] = pd.to_numeric(df['product_id'], errors='coerce').astype('Int64')
+
+            if df[column].dtype == "object":
+                df.loc[:, column] = df[column].astype(str).str.lower().str.strip()
+                df.loc[:, column] = df[column].fillna("Unknown")
+
+        return df
+
     def transform_client_data(self, df):
         """
         Transform client data.
@@ -55,10 +92,18 @@ class ETLPipeline:
         Returns:
             pd.DataFrame: Transformed client data
         """
-        # TODO: Implement transformation logic
-        # Example: Clean and standardize date formats
-        # df['registration_date'] = pd.to_datetime(df['registration_date'], errors='coerce')
+
+        logger.info("🔄 Transforming client data")
+        
+        df = self.clean_dataframe(df)
+
+        df = df.drop_duplicates(subset=['client_id'])
+
+        df['registration_date'] = pd.to_datetime(df['registration_date'], errors='coerce')
+        df['status'] = df['status'].str.lower().str.replace(' ', '_')
+        
         return df
+    
     
     def transform_customer_data(self, df):
         """
@@ -70,7 +115,17 @@ class ETLPipeline:
         Returns:
             pd.DataFrame: Transformed customer data
         """
-        # TODO: Implement transformation logic
+
+        logger.info("🔄 Transforming customer data")
+
+        df = df.drop_duplicates(subset=['customer_id'])
+
+        df = self.clean_dataframe(df)
+
+        df['registration_date'] = pd.to_datetime(df['registration_date'], errors='coerce')
+        df['birth_date'] = pd.to_datetime(df['registration_date'], errors='coerce')
+        df['last_login'] = pd.to_datetime(df['registration_date'], errors='coerce')        
+
         return df
     
     def transform_product_data(self, df):
@@ -83,9 +138,23 @@ class ETLPipeline:
         Returns:
             pd.DataFrame: Transformed product data
         """
-        # TODO: Implement transformation logic
+        logger.info("🔄 Transforming product data")
+
+        df = self.clean_dataframe(df)
+
+        df = df.drop_duplicates(subset=['product_id'])
+
         return df
     
+    def product_id_processing(self,df):
+        product_mapping = self.get_product_mapping()
+
+        df['product_id'] = df['product_id'].apply(lambda x: product_mapping.get(x.lower().strip(), None) if isinstance(x, str) else x)
+
+        df = df.dropna(subset=['product_id'])
+
+        return df
+
     def transform_purchase_data(self, df):
         """
         Transform purchase data.
@@ -96,7 +165,18 @@ class ETLPipeline:
         Returns:
             pd.DataFrame: Transformed purchase data
         """
-        # TODO: Implement transformation logic
+
+        logger.info("🔄 Transforming purchase data")
+
+
+        df = self.product_id_processing(df)
+
+        df = self.clean_dataframe(df)
+
+        df.loc[:, 'payment_status'] = df['payment_status'].str.lower().str.replace(' ', '_')
+
+        df = df.drop_duplicates(subset=['purchase_id'])
+
         return df
     
     def transform_return_data(self, df):
@@ -109,9 +189,26 @@ class ETLPipeline:
         Returns:
             pd.DataFrame: Transformed return data
         """
-        # TODO: Implement transformation logic
+
+        logger.info("🔄 Transforming return data")
+
+        df = self.product_id_processing(df)
+
+        df = self.clean_dataframe(df)
+
+        df.loc[:, 'status'] = df['status'].str.lower().str.replace(' ', '_')
+        df = df.drop_duplicates(subset=['return_id'])
         return df
     
+    def get_product_mapping(self):
+        """Fetch product_id mappings from the products table."""
+        
+        query = "SELECT product_name, product_id FROM interview_db.dbo.products"
+        df_products = pd.read_sql(query, self.source_conn)
+        
+        return dict(zip(df_products['product_name'].str.lower().str.strip(), df_products['product_id']))
+
+
     def validate_data(self, transformed_data):
         """
         Validate transformed data for quality issues.
@@ -137,23 +234,32 @@ class ETLPipeline:
     
     def check_missing_values(self, df):
         """Check for missing values in DataFrame."""
-        # TODO: Implement missing values check
-        return {}
+        missing_values = df.isnull().sum()
+        missing_dict = missing_values[missing_values > 0].to_dict()
+
+        logger.info(f"Missing values detected: {missing_dict}")
+        return missing_dict
     
     def check_duplicates(self, df):
-        """Check for duplicate records in DataFrame."""
-        # TODO: Implement duplicates check
-        return {}
+        duplicate_count = df.duplicated().sum()
+        if duplicate_count > 0:
+            df = df.drop_duplicates()
     
     def check_negative_values(self, df):
         """Check for negative values in numeric columns."""
-        # TODO: Implement negative values check
-        return {}
+        numeric_cols = df.select_dtypes(include=['number'])
+        negatives = (numeric_cols < 0).sum()
+        negative_dict = negatives[negatives > 0].to_dict()
+
+        logger.info(f"Negative values detected: {negative_dict}")
+        return negative_dict
     
     def check_invalid_dates(self, df):
-        """Check for invalid date formats."""
-        # TODO: Implement date validation
-        return {}
+        date_cols = df.select_dtypes(include=['datetime64'])
+        invalid_dates = {col: df[col].isna().sum() for col in date_cols}
+
+        logger.info(f"Invalid dates detected: {invalid_dates}")
+        return invalid_dates
     
     def create_dimension_tables(self, transformed_data):
         """
@@ -166,14 +272,15 @@ class ETLPipeline:
             dict: Dictionary containing dimension tables
         """
         dimensions = {}
-        
-        # TODO: Implement dimension table creation
-        # Example: Customer dimension
-        # dimensions['dim_customer'] = self.create_customer_dimension(transformed_data['customers'])
-        
+
+        dimensions['dim_clients'] = transformed_data['clients'][['client_id', 'company_name', 'contact_name', 'email', 'phone', 'city', 'state', 'country', 'status']]
+        dimensions['dim_customers'] = transformed_data['customers'][['customer_id', 'first_name','last_name', 'email', 'phone', 'city', 'state', 'country', 'birth_date']]
+        dimensions['dim_products'] = transformed_data['products'][['product_id', 'product_name', 'category', 'sub_category', 'supplier', 'selling_price', 'is_active']]
+
+        logger.info("✅ Dimension tables created successfully")
         return dimensions
     
-    def create_fact_tables(self, transformed_data, dimensions):
+    def create_fact_tables(self, transformed_data):
         """
         Create fact tables for the data warehouse.
         
@@ -185,11 +292,11 @@ class ETLPipeline:
             dict: Dictionary containing fact tables
         """
         facts = {}
-        
-        # TODO: Implement fact table creation
-        # Example: Sales fact table
-        # facts['fact_sales'] = self.create_sales_fact(transformed_data['purchases'], dimensions)
-        
+
+        facts['fact_sales'] = transformed_data['purchases'][['purchase_id', 'client_id', 'customer_id', 'product_id', 'purchase_date', 'quantity', 'unit_price', 'total_amount', 'payment_method', 'payment_status']]
+        facts['fact_returns'] = transformed_data['returns'][['return_id', 'purchase_id', 'client_id', 'customer_id', 'product_id', 'return_date', 'quantity', 'refund_amount', 'status']]
+
+        logger.info("✅ Fact tables created successfully")
         return facts
     
     def load_data(self, tables):
@@ -201,7 +308,7 @@ class ETLPipeline:
         """
         try:
             for table_name, df in tables.items():
-                df.to_sql(table_name, self.target_conn, if_exists='replace', index=False)
+                df.to_sql(table_name, self.target_conn, if_exists='append', index=False)
                 logger.info(f"Loaded {len(df)} rows into {table_name}")
         except Exception as e:
             logger.error(f"Error loading data: {str(e)}")
@@ -234,7 +341,7 @@ class ETLPipeline:
             username = self.config.get('target_username', os.getenv('DW_USER', 'sa'))
             password = self.config.get('target_password', os.getenv('DW_PASSWORD', 'YourStrongPassword123!'))
             
-            connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+            connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
             self.target_conn = sqlalchemy.create_engine(connection_string)
             logger.info("Connected to target database")
         except Exception as e:
@@ -257,7 +364,7 @@ class ETLPipeline:
             # Connect to databases
             self.connect_to_source_database()
             self.connect_to_target_database()
-            
+
             # Extract
             logger.info("Extracting data from source database")
             extracted_data = {
@@ -267,8 +374,6 @@ class ETLPipeline:
                 'purchases': self.extract_data('purchases'),
                 'returns': self.extract_data('returns')
             }
-
-            print(extracted_data)
             
             # Transform
             logger.info("Transforming data")
@@ -289,7 +394,7 @@ class ETLPipeline:
             dimensions = self.create_dimension_tables(transformed_data)
             
             logger.info("Creating fact tables")
-            facts = self.create_fact_tables(transformed_data, dimensions)
+            facts = self.create_fact_tables(transformed_data)
             
             # Load
             logger.info("Loading dimension tables into data warehouse")
@@ -306,19 +411,4 @@ class ETLPipeline:
         finally:
             self.close_connections()
 
-if __name__ == "__main__":
-    # Configuration
-    config = {
-        'source_server': os.getenv('DB_SERVER', 'localhost,1433'),
-        'source_database': os.getenv('DB_NAME', 'interview_db'),
-        'source_username': os.getenv('DB_USER', 'sa'),
-        'source_password': os.getenv('DB_PASSWORD', 'YourStrongPassword123!'),
-        'target_server': os.getenv('DW_SERVER', 'localhost,1433'),
-        'target_database': os.getenv('DW_NAME', 'interview_dw'),
-        'target_username': os.getenv('DW_USER', 'sa'),
-        'target_password': os.getenv('DW_PASSWORD', 'YourStrongPassword123!')
-    }
-    
-    # Run ETL pipeline
-    etl = ETLPipeline(config)
-    etl.run_pipeline()
+

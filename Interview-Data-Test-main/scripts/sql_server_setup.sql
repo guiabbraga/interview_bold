@@ -52,7 +52,8 @@ BEGIN
         country NVARCHAR(50),
         registration_date NVARCHAR(20),  -- Intentional issue: storing dates as strings
         status NVARCHAR(20),
-        credit_limit DECIMAL(10, 2)
+        credit_limit DECIMAL(10, 2),
+        last_update DATE
     );
 END
 
@@ -73,7 +74,9 @@ BEGIN
         zip_code NVARCHAR(20),
         country NVARCHAR(50),
         registration_date NVARCHAR(20),  -- Intentional issue: storing dates as strings
-        last_login NVARCHAR(30)  -- Intentional issue: inconsistent date format
+        last_login NVARCHAR(30),
+        updated_at DATETIME, -- Intentional issue: inconsistent date format
+        last_update DATE
     );
 END
 
@@ -94,7 +97,8 @@ BEGIN
         is_active BIT,
         is_apparel BIT,  -- Nova coluna para identificar produtos de vestuário
         created_at DATETIME,
-        updated_at DATETIME
+        updated_at DATETIME,
+        last_update DATE
     );
 END
 
@@ -119,7 +123,8 @@ BEGIN
         shipping_country NVARCHAR(50),
         shipping_date NVARCHAR(30),  -- Intentional issue: inconsistent date format
         delivery_date NVARCHAR(30),  -- Intentional issue: inconsistent date format
-        notes NVARCHAR(500)
+        notes NVARCHAR(500),
+        last_update DATE
     );
 END
 
@@ -138,7 +143,8 @@ BEGIN
         refund_amount DECIMAL(10, 2),  -- Will contain negative values
         status NVARCHAR(20),
         processed_by NVARCHAR(100),
-        notes NVARCHAR(500)
+        notes NVARCHAR(500),
+        last_update DATE
     );
 END
 

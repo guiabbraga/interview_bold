@@ -81,7 +81,8 @@ def generate_clients(num_clients=50, start_id=1):
             'country': country,
             'registration_date': registration_date,
             'status': status,
-            'credit_limit': credit_limit
+            'credit_limit': credit_limit,
+            'last_update': pd.to_datetime('today').date()
         })
     
     return pd.DataFrame(clients)
@@ -172,8 +173,10 @@ def generate_customers(clients_df, num_customers=200, start_id=1):
             'zip_code': zip_code,
             'country': country,
             'registration_date': registration_date,
-            'last_login': last_login
+            'last_login': last_login,
+            'last_update': pd.to_datetime('today').date()
         })
+
     
     return pd.DataFrame(customers)
 
@@ -268,8 +271,10 @@ def generate_products(num_products=100, start_id=1):
             'is_active': is_active,
             'is_apparel': is_apparel,
             'created_at': created_at,
-            'updated_at': updated_at
+            'updated_at': updated_at,
+            'last_update': pd.to_datetime('today').date()
         })
+
     
     return pd.DataFrame(products)
 
@@ -384,7 +389,8 @@ def generate_purchases(clients_df, customers_df, products_df, num_purchases=500,
             'shipping_country': shipping_country,
             'shipping_date': shipping_date,
             'delivery_date': delivery_date,
-            'notes': notes
+            'notes': notes,
+            'last_update': pd.to_datetime('today').date()
         })
     
     return pd.DataFrame(purchases)
@@ -515,7 +521,8 @@ def generate_returns(purchases_df, clients_df, customers_df, products_df, num_re
             'reason': reason,
             'status': status,
             'refund_amount': refund_amount,
-            'notes': notes
+            'notes': notes,
+            'last_update': pd.to_datetime('today').date()
         })
     
     return pd.DataFrame(returns)

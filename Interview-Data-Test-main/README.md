@@ -55,10 +55,72 @@ Your goal is to create a data pipeline that:
 Write SQL queries to answer the following business questions:
 
 1. Who are the top 10 customers by total purchase amount?
+
+   SELECT TOP 10 
+      c.customer_id,
+      c.first_name,
+      c.last_name,
+      c.email,
+      SUM(s.total_amount) AS total_spent
+   FROM interview_dw.dbo.fact_sales s
+   JOIN interview_dw.dbo.dim_customers c ON s.customer_id = c.customer_id
+   GROUP BY 
+      c.customer_id, c.first_name, c.last_name, c.email
+   ORDER BY total_spent DESC;
+
 2. What are the monthly sales trends over the past year?
+   SELECT 
+      FORMAT(s.purchase_date, 'yyyy-MM') AS year_month,
+      SUM(s.total_amount) AS monthly_sales
+   FROM interview_dw.dbo.fact_sales s
+   WHERE s.purchase_date >= DATEADD(YEAR, -1, GETDATE())
+   GROUP BY FORMAT(s.purchase_date, 'yyyy-MM')
+   ORDER BY year_month;
 3. Which product categories have the highest profit margins?
+
+   SELECT 
+      p.category,
+      ROUND(AVG(p.selling_price - s.unit_price), 2) AS avg_profit_margin
+   FROM interview_dw.dbo.fact_sales s
+   JOIN interview_dw.dbo.dim_products p ON s.product_id = p.product_id
+   GROUP BY p.category
+   ORDER BY avg_profit_margin DESC;
+
 4. How can customers be segmented based on their purchase behavior?
+
+   SELECT 
+      c.customer_id,
+      c.first_name,
+      c.last_name,
+      COUNT(s.purchase_id) AS total_purchases,
+      SUM(s.total_amount) AS total_spent,
+      CASE
+         WHEN COUNT(s.purchase_id) >= 50 THEN 'High Value'
+         WHEN COUNT(s.purchase_id) BETWEEN 20 AND 49 THEN 'Medium Value'
+         ELSE 'Low Value'
+      END AS customer_segment
+   FROM interview_dw.dbo.fact_sales s
+   JOIN interview_dw.dbo.dim_customers c ON s.customer_id = c.customer_id
+   GROUP BY c.customer_id, c.first_name, c.last_name
+   ORDER BY total_spent DESC;
+
 5. Are there any potential fraud patterns in the transactions?
+
+   SELECT 
+      c.customer_id,
+      c.first_name,
+      c.last_name,
+      COUNT(DISTINCT r.return_id) AS total_returns,
+      SUM(r.refund_amount) AS total_refunded,
+      COUNT(CASE WHEN s.payment_status IN ('refunded', 'failed') THEN 1 END) AS risky_transactions
+   FROM interview_dw.dbo.fact_returns r
+   JOIN interview_dw.dbo.fact_sales s ON r.purchase_id = s.purchase_id
+   JOIN interview_dw.dbo.dim_customers c ON r.customer_id = c.customer_id
+   GROUP BY c.customer_id, c.first_name, c.last_name
+   HAVING 
+      SUM(r.refund_amount) > 1000 OR
+      COUNT(CASE WHEN s.payment_status IN ('refunded', 'failed') THEN 1 END) >= 3
+   ORDER BY total_refunded DESC;
 
 ## Getting Started
 
@@ -155,7 +217,7 @@ As part of this challenge, you are expected to:
 ## Evaluation Criteria
 
 Your solution will be evaluated based on:
-
+`` 
 1. **Code Quality**:
    - Readability and organization
    - Error handling
