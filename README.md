@@ -6,7 +6,7 @@ While I know the result may not be perfect, I made every effort to address the r
 
 I deeply appreciate the time and consideration given to this process, and I’m very grateful for the opportunity to participate.
 
-Thank you for your understanding and support!
+Thank you for your understanding
 
 ## 📁 Schema Overview
 
